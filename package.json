@@ -1,17 +1,21 @@
 {
   "name": "cordova-plugin-google-signin",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "author": "Mahendra Liya",
   "contributors": [
     {
       "name": "Gabriel Petchesi",
       "email": "pghoratiu@gmail.com"
+    },
+    {
+      "name": "Alfred Rowe",
+      "email": "team@egotickets.com"
     }
   ],
-  "description": "Use your Google account to authenticated in your cordova mobile app",
+  "description": "Use your Google account to authenticate in your cordova mobile app. Updated for GoogleSignIn SDK 7.x.",
   "repository": {
     "type": "git",
-    "url": "git@github.com:pghoratiu/cordova-plugin-google-signin.git"
+    "url": "git@github.com:nukturnal/cordova-plugin-google-signin.git"
   },
   "cordova": {
     "id": "com.devapps",

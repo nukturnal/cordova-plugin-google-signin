@@ -1,4 +1,5 @@
 /********* GoogleSignInPlugin.m Cordova Plugin Implementation *******/
+// Updated for GoogleSignIn SDK 7.x compatibility
 
 #import <Cordova/CDV.h>
 
@@ -54,31 +55,43 @@
 
     NSString *clientId = [self reverseUrlScheme:reversedClientId];
 
+    // SDK 7.x: Configure the shared instance
     GIDConfiguration *config = [[GIDConfiguration alloc] initWithClientID:clientId];
+    GIDSignIn.sharedInstance.configuration = config;
     
-    GIDSignIn *signIn = GIDSignIn.sharedInstance;
+    self.isSigningIn = YES;
     
-    [signIn signInWithConfiguration:config presentingViewController:self.viewController callback:^(GIDGoogleUser * _Nullable user, NSError * _Nullable error) {
+    // SDK 7.x: Use signInWithPresentingViewController:completion: instead of signInWithConfiguration:presentingViewController:callback:
+    [GIDSignIn.sharedInstance signInWithPresentingViewController:self.viewController completion:^(GIDSignInResult * _Nullable result, NSError * _Nullable error) {
+        self.isSigningIn = NO;
+        
         if (error) {
             NSDictionary *errorDetails = @{@"status": @"error", @"message": error.localizedDescription};
             CDVPluginResult * pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[self toJSONString:errorDetails]];
             [self.commandDelegate sendPluginResult:pluginResult callbackId:self->_callbackId];
         } else {
+            // SDK 7.x: Get user from result
+            GIDGoogleUser *user = result.user;
+            
             NSString *email = user.profile.email;
             NSString *userId = user.userID;
-            NSURL *imageUrl = [user.profile imageURLWithDimension:120]; // TODO pass in img size as param, and try to sync with Android
-            NSDictionary *result = @{
-                           @"email"            : email,
-                           @"id"               : userId,
-                           @"id_token"         : user.authentication.idToken,
-                           @"display_name"     : user.profile.name       ? : [NSNull null],
-                           @"given_name"       : user.profile.givenName  ? : [NSNull null],
-                           @"family_name"      : user.profile.familyName ? : [NSNull null],
+            NSURL *imageUrl = [user.profile imageURLWithDimension:120];
+            
+            // SDK 7.x: idToken is now directly on user, and we need .tokenString
+            NSString *idToken = user.idToken.tokenString;
+            
+            NSDictionary *resultDict = @{
+                           @"email"            : email ?: [NSNull null],
+                           @"id"               : userId ?: [NSNull null],
+                           @"id_token"         : idToken ?: [NSNull null],
+                           @"display_name"     : user.profile.name ?: [NSNull null],
+                           @"given_name"       : user.profile.givenName ?: [NSNull null],
+                           @"family_name"      : user.profile.familyName ?: [NSNull null],
                            @"photo_url"        : imageUrl ? imageUrl.absoluteString : [NSNull null],
                            };
 
 
-            NSDictionary *response = @{@"message": result, @"status": @"success"};
+            NSDictionary *response = @{@"message": resultDict, @"status": @"success"};
             
             CDVPluginResult * pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString: [self toJSONString:response]];
             [self.commandDelegate sendPluginResult:pluginResult callbackId:self->_callbackId];
@@ -118,7 +131,8 @@
 }
 
 - (void) disconnect:(CDVInvokedUrlCommand*)command {
-    [GIDSignIn.sharedInstance disconnectWithCallback:^(NSError * _Nullable error) {
+    // SDK 7.x: Use disconnectWithCompletion: instead of disconnectWithCallback:
+    [GIDSignIn.sharedInstance disconnectWithCompletion:^(NSError * _Nullable error) {
         if(error == nil) {
             NSDictionary *details = @{@"status": @"success", @"message": @"Disconnected"};
             CDVPluginResult * pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:[self toJSONString:details]];
@@ -136,20 +150,6 @@
     NSDictionary *details = @{@"status": @"success", @"message": (isSignedIn) ? @"true" : @"false"};
     CDVPluginResult * pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:[self toJSONString:details]];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
-
-#pragma mark - GIDSignInDelegate
-- (void)signIn:(GIDSignIn *)signIn didSignInForUser:(GIDGoogleUser *)user withError:(NSError *)error {
-    
-}
-
-- (void)signIn:(GIDSignIn *)signIn presentViewController:(UIViewController *)viewController {
-    self.isSigningIn = YES;
-    [self.viewController presentViewController:viewController animated:YES completion:nil];
-}
-
-- (void)signIn:(GIDSignIn *)signIn dismissViewController:(UIViewController *)viewController {
-    [self.viewController dismissViewControllerAnimated:YES completion:nil];
 }
 
 - (NSString*)toJSONString:(NSDictionary*)dictionaryOrArray {
